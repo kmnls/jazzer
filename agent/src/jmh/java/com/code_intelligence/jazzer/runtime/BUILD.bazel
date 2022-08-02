@@ -13,6 +13,7 @@ java_test(
     name = "FuzzerCallbacksBenchmarkTest",
     args = JMH_TEST_ARGS,
     main_class = "org.openjdk.jmh.Main",
+    tags = ["no-coverage"],
     # Directly invoke JMH's main without using a testrunner.
     use_testrunner = False,
     runtime_deps = [
