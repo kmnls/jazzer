@@ -23,6 +23,9 @@ public class FuzzedDataProviderImpl implements FuzzedDataProvider, AutoCloseable
     // The replayer loads a standalone version of the FuzzedDataProvider.
     if (System.getProperty("jazzer.is_replayer") == null) {
       RulesJni.loadLibrary("jazzer_driver", "/com/code_intelligence/jazzer/driver");
+    } else {
+      RulesJni.loadLibrary(
+          "fuzzed_data_provider_standalone", "/com/code_intelligence/jazzer/driver");
     }
     nativeInit();
   }

@@ -30,13 +30,6 @@ public class Replayer {
 
   static {
     System.setProperty("jazzer.is_replayer", "true");
-    try {
-      RulesJni.loadLibrary(
-          "fuzzed_data_provider_standalone", "/com/code_intelligence/jazzer/driver");
-    } catch (Throwable t) {
-      t.printStackTrace();
-      System.exit(STATUS_OTHER_ERROR);
-    }
   }
 
   public static void main(String[] args) {
