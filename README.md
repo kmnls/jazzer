@@ -504,7 +504,9 @@ the native libraries. The required compilation flags for native libraries are as
  - *AddressSanitizer*: `-fsanitize=fuzzer-no-link,address`
  - *UndefinedBehaviorSanitizer*: `-fsanitize=fuzzer-no-link,undefined` (add `-fno-sanitize-recover=all` to crash on UBSan reports)
 
-Then, use the appropriate launcher `//:jazzer_asan` or `//:jazzer_ubsan`.
+Then, start Jazzer with `--asan` and/or `--ubsan` to automatically preload the sanitizer runtimes.
+Jazzer defaults to using the runtimes associated with `clang` on the `PATH`.
+If you used a different compiler to compile the native libraries, specify it with `CC` to override this default.
 
 **Note:** Sanitizers other than AddressSanitizer and UndefinedBehaviorSanitizer are not yet supported.
 Furthermore, due to the nature of the JVM's GC, LeakSanitizer reports too many false positives to be useful and is thus disabled.
