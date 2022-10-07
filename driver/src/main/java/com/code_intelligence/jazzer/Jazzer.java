@@ -179,7 +179,14 @@ public class Jazzer {
 
   private static Stream<String> javaBinaryArgs() {
     return Stream.concat(ManagementFactory.getRuntimeMXBean().getInputArguments().stream(),
-        Stream.of("-cp", System.getProperty("java.class.path"), Jazzer.class.getName()));
+        Stream.of("-cp", System.getProperty("java.class.path"),
+            // Make ByteBuddyAgent's job simpler by allowing it to attach directly to the JVM
+            // rather than relying on an external helper. The latter fails on macOS 12 with JDK 11+
+            // (but not 8) and UBSan preloaded with:
+            // Caused by: java.io.IOException: Cannot run program
+            // "/Users/runner/hostedtoolcache/Java_Zulu_jdk/17.0.4-8/x64/bin/java": error=0, Failed
+            // to exec spawn helper: pid: 8227, signal: 9
+            "-Djdk.attach.allowAttachSelf=true", Jazzer.class.getName()));
   }
 
   /**
