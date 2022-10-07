@@ -14,13 +14,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04, macos-11, windows-2019]
+        os: [ubuntu-20.04, macos-12, windows-2019]
         jdk: [8, 17]
         include:
           - os: ubuntu-20.04
             arch: "linux"
             cache: "/home/runner/.cache/bazel-disk"
-          - os: macos-11
+          - os: macos-12
             arch: "macos-x86_64"
             # Inherit CC from the environment so that LLVM clang is picked over Apple clang.
             # Also work around https://github.com/bazelbuild/bazel/issues/13944#issuecomment-1271745466.
@@ -34,8 +34,9 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Set up JDK
-        uses: actions/setup-java@v1
+        uses: actions/setup-java@v3
         with:
+          distribution: zulu
           java-version: ${{ matrix.jdk }}
 
       - name: Set up MSYS2 to work around bazelbuild/bazel#15919

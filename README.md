@@ -14,7 +14,7 @@ native libraries.
 
 Jazzer currently supports the following platforms:
 * Linux x86_64
-* macOS 10.15+ x86_64 (experimental support for arm64)
+* macOS 12+ x86_64 & arm64
 * Windows x86_64
 
 ## News: Jazzer available in OSS-Fuzz
