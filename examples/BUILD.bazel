@@ -57,6 +57,7 @@ java_fuzz_target_test(
     fuzzer_args = [
         "--asan",
     ],
+    launcher_variant = "java",
     target_class = "com.example.ExampleFuzzerWithNative",
     target_compatible_with = SKIP_ON_WINDOWS,
     verify_crash_reproducer = False,
@@ -73,6 +74,7 @@ java_fuzz_target_test(
     fuzzer_args = [
         "--ubsan",
     ],
+    launcher_variant = "java",
     target_class = "com.example.ExampleFuzzerWithNative",
     # Crashes at runtime without an error message.
     target_compatible_with = SKIP_ON_WINDOWS,

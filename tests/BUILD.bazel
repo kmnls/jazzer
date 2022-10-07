@@ -247,6 +247,7 @@ java_fuzz_target_test(
         "-use_value_profile=1",
         "--native",
     ],
+    launcher_variant = "java",
     target_class = "com.example.NativeValueProfileFuzzer",
     target_compatible_with = SKIP_ON_WINDOWS,
     verify_crash_reproducer = False,
