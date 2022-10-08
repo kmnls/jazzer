@@ -57,7 +57,7 @@ import java.util.stream.Stream;
  */
 public class Jazzer {
   public static void main(String[] args) throws IOException, InterruptedException {
-    start(Stream.concat(Stream.of(prepareArgv0()), Arrays.stream(args)).collect(toList()));
+    start(Stream.concat(Stream.of(prepareArgv0()), Arrays.stream(args)).collect(toList()), false);
   }
 
   // Accessed by jazzer_main.cpp.
@@ -65,10 +65,12 @@ public class Jazzer {
   private static void main(byte[][] nativeArgs) throws IOException, InterruptedException {
     start(Arrays.stream(nativeArgs)
               .map(bytes -> new String(bytes, StandardCharsets.UTF_8))
-              .collect(toList()));
+              .collect(toList()),
+        true);
   }
 
-  private static void start(List<String> args) throws IOException, InterruptedException {
+  private static void start(List<String> args, boolean isNativeLauncher)
+      throws IOException, InterruptedException {
     parseJazzerArgsToProperties(args);
     // --asan and --ubsan imply --native by default, but --native can also be used by itself to fuzz
     // native libraries without sanitizers (e.g. to quickly grow a corpus).
@@ -83,6 +85,11 @@ public class Jazzer {
     // No native fuzzing has been requested, fuzz in the current process.
     if (!fuzzNative) {
       exit(Driver.start(args));
+    }
+
+    if (isMacOs() && !isNativeLauncher && (loadUBSan || loadASan)) {
+      System.err.println("ERROR: --asan and --ubsan require the native launcher on macOS");
+      exit(1);
     }
 
     if (!isLinux() && !isMacOs()) {

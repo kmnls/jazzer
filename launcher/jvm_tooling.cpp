@@ -143,6 +143,14 @@ JVM::JVM(const std::string &executable_path) {
   options.push_back(JavaVMOption{.optionString = (char *)"-XX:+UseParallelGC"});
   options.push_back(
       JavaVMOption{.optionString = (char *)"-XX:+CriticalJNINatives"});
+  // Make ByteBuddyAgent's job simpler by allowing it to attach directly to the
+  // JVM rather than relying on an external helper. The latter fails on macOS 12
+  // with JDK 11+ (but not 8) and UBSan preloaded with: Caused by:
+  // java.io.IOException: Cannot run program
+  // "/Users/runner/hostedtoolcache/Java_Zulu_jdk/17.0.4-8/x64/bin/java":
+  // error=0, Failed to exec spawn helper: pid: 8227, signal: 9
+  options.push_back(JavaVMOption{
+      .optionString = (char *)"-Djdk.attach.allowAttachSelf=true"});
 
   // Add additional JVM options set through JAVA_OPTS.
   std::vector<std::string> java_opts_args;
