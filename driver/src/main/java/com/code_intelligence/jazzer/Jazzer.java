@@ -34,8 +34,6 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.attribute.FileAttribute;
-import java.nio.file.attribute.PosixFilePermissions;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -151,25 +149,46 @@ public class Jazzer {
     }
   }
 
-  private static String prepareArgv0() throws IOException {
-    char shellQuote = isPosix() ? '\'' : '"';
-    String launcherTemplate = isPosix() ? "#!/usr/bin/env sh\n%s $@\n" : "@echo off\r\n%s %%*\r\n";
-    String launcherExtension = isPosix() ? ".sh" : ".bat";
-    FileAttribute<?>[] launcherScriptAttributes = isPosix()
-        ? new FileAttribute[] {PosixFilePermissions.asFileAttribute(
-            PosixFilePermissions.fromString("rwx------"))}
-        : new FileAttribute[] {};
+  private static String prepareArgv0() throws IOException, InterruptedException {
+    String launcherTemplate = String.join("\n",
+        new String[] {
+            "#include <unistd.h>",
+            "#include <stddef.h>",
+            "#include <stdlib.h>",
+            "#include <string.h>",
+            "int main(int argc, const char** argv) {",
+            "  char* fixed_argv[] = {%s};",
+            "  size_t fixed_argc = sizeof(fixed_argv) / sizeof(char*);",
+            "  char** combined_argv = (char**) malloc((fixed_argc + argc) * sizeof(char*));",
+            "  memcpy(combined_argv, fixed_argv, fixed_argc * sizeof(char*));",
+            "  memcpy(combined_argv + fixed_argc, argv + 1, argc * sizeof(char*));",
+            "  execv(combined_argv[0], combined_argv);",
+            "  return 1;",
+            "}",
+        });
+    char shellQuote = '"';
+    String launcherExtension = isPosix() ? "" : ".exe";
     // Create a wrapper script that faithfully recreates the current JVM. By using this script as
     // libFuzzer's argv[0], libFuzzer modes that rely on subprocesses can work with the Java driver.
     String command = Stream
                          .concat(Stream.of(javaBinary().toString()), javaBinaryArgs())
                          // Escape individual arguments for the shell.
-                         .map(str -> shellQuote + str + shellQuote)
-                         .collect(joining(" "));
+                         .map(arg -> arg.replace("\"", "\\\""))
+                         .map(arg -> shellQuote + arg + shellQuote)
+                         .collect(joining(", "));
     String launcherContent = String.format(launcherTemplate, command);
-    Path launcher = Files.createTempFile("jazzer-", launcherExtension, launcherScriptAttributes);
-    launcher.toFile().deleteOnExit();
-    Files.write(launcher, launcherContent.getBytes(StandardCharsets.UTF_8));
+    Path launcherSource = Files.createTempFile("jazzer-", ".c");
+    launcherSource.toFile().deleteOnExit();
+    Files.write(launcherSource, launcherContent.getBytes(StandardCharsets.UTF_8));
+    Path launcher = Files.createTempFile("jazzer-", launcherExtension);
+    ProcessBuilder clangBuilder =
+        new ProcessBuilder("clang", "-o", launcher.toString(), launcherSource.toString());
+    clangBuilder.inheritIO();
+    int exitValue = clangBuilder.start().waitFor();
+    if (exitValue != 0) {
+      System.err.println("Failed to run " + String.join(" ", clangBuilder.command()));
+      System.exit(1);
+    }
     return launcher.toAbsolutePath().toString();
   }
 
