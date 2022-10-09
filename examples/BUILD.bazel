@@ -59,7 +59,7 @@ java_fuzz_target_test(
     ],
     launcher_variant = "java",
     target_class = "com.example.ExampleFuzzerWithNative",
-    target_compatible_with = ["@platforms//os:linux"],
+    target_compatible_with = SKIP_ON_WINDOWS,
     verify_crash_reproducer = False,
     runtime_deps = [
         ":example_fuzzer_with_native_lib",
@@ -76,7 +76,7 @@ java_fuzz_target_test(
     ],
     launcher_variant = "java",
     target_class = "com.example.ExampleFuzzerWithNative",
-    target_compatible_with = ["@platforms//os:linux"],
+    target_compatible_with = SKIP_ON_WINDOWS,
     verify_crash_reproducer = False,
     runtime_deps = [
         ":example_fuzzer_with_native_lib",

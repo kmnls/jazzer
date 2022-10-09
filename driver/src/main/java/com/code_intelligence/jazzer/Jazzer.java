@@ -57,7 +57,7 @@ import java.util.stream.Stream;
  */
 public class Jazzer {
   public static void main(String[] args) throws IOException, InterruptedException {
-    start(Stream.concat(Stream.of(prepareArgv0()), Arrays.stream(args)).collect(toList()), false);
+    start(Arrays.stream(args).collect(toList()), false);
   }
 
   // Accessed by jazzer_main.cpp.
@@ -69,7 +69,7 @@ public class Jazzer {
         true);
   }
 
-  private static void start(List<String> args, boolean isNativeLauncher)
+  private static void start(List<String> args, boolean includesLauncher)
       throws IOException, InterruptedException {
     parseJazzerArgsToProperties(args);
     // --asan and --ubsan imply --native by default, but --native can also be used by itself to fuzz
@@ -84,12 +84,11 @@ public class Jazzer {
     }
     // No native fuzzing has been requested, fuzz in the current process.
     if (!fuzzNative) {
+      System.err.println("DYLD_INSERT_LIBRARIES in subprocess: " + System.getenv("DYLD_INSERT_LIBRARIES"));
+      if (!includesLauncher) {
+        args = Stream.concat(Stream.of(prepareArgv0(new ArrayList<>())), args.stream()).collect(toList());
+      }
       exit(Driver.start(args));
-    }
-
-    if (isMacOs() && !isNativeLauncher && (loadUBSan || loadASan)) {
-      System.err.println("ERROR: --asan and --ubsan require the native launcher on macOS");
-      exit(1);
     }
 
     if (!isLinux() && !isMacOs()) {
@@ -101,23 +100,22 @@ public class Jazzer {
     // Run ourselves as a subprocess with `jazzer_preload` and (optionally) native sanitizers
     // preloaded. By inheriting IO, this wrapping should become invisible for the user.
     Set<String> argsToFilter = Stream.of("--asan", "--ubsan", "--native").collect(toSet());
-    List<String> subProcessArgs =
-        args.stream().filter(arg -> !argsToFilter.contains(arg.split("=")[0])).collect(toList());
-    ProcessBuilder processBuilder = new ProcessBuilder(subProcessArgs);
+    ProcessBuilder processBuilder = new ProcessBuilder();
     List<Path> preloadLibs = new ArrayList<>();
     // We have to load jazzer_preload before we load ASan since the ASan includes no-op definitions
     // of the fuzzer callbacks as weak symbols, but the dynamic linker doesn't distinguish between
     // strong and weak symbols.
     preloadLibs.add(RulesJni.extractLibrary("jazzer_preload", Jazzer.class));
     if (loadASan) {
-      appendWithPathListSeparator(processBuilder, "ASAN_OPTIONS",
+      processBuilder.environment().compute("ASAN_OPTIONS", (name, currentValue) ->
+          appendWithPathListSeparator(name,
           // The JVM produces an extremely large number of false positive leaks, which makes it
           // impossible to use LeakSanitizer.
           // TODO: Investigate whether we can hook malloc/free only for JNI shared libraries, not
           // the JVM itself.
           "detect_leaks=0",
           // We load jazzer_preload first.
-          "verify_asan_link_order=0");
+          "verify_asan_link_order=0"));
       System.err.println(
           "WARN: Jazzer is not compatible with LeakSanitizer. Leaks are not reported.");
       preloadLibs.add(findHostClangLibrary(asanLibName()));
@@ -125,9 +123,12 @@ public class Jazzer {
     if (loadUBSan) {
       preloadLibs.add(findHostClangLibrary(ubsanLibName()));
     }
-    String preloadVariable = isLinux() ? "LD_PRELOAD" : "DYLD_INSERT_LIBRARIES";
-    appendWithPathListSeparator(processBuilder, preloadVariable,
-        preloadLibs.stream().map(Path::toString).toArray(String[] ::new));
+    System.err.println("DYLD_INSERT_LIBRARIES in processBuilder was: " + processBuilder.environment().get(preloadVariable()));
+    processBuilder.environment().remove(preloadVariable());
+    Stream<String> subProcessArgv0 = includesLauncher ? Stream.of() : Stream.of(prepareArgv0(preloadLibs));
+    List<String> subProcessArgs =
+        Stream.concat(subProcessArgv0, args.stream().filter(arg -> !argsToFilter.contains(arg.split("=")[0]))).collect(toList());
+    processBuilder.command(subProcessArgs);
     processBuilder.inheritIO();
 
     exit(processBuilder.start().waitFor());
@@ -158,7 +159,7 @@ public class Jazzer {
     }
   }
 
-  private static String prepareArgv0() throws IOException {
+  private static String prepareArgv0(List<Path> preloadLibs) throws IOException {
     char shellQuote = isPosix() ? '\'' : '"';
     String launcherTemplate = isPosix() ? "#!/usr/bin/env sh\n%s $@\n" : "@echo off\r\n%s %%*\r\n";
     String launcherExtension = isPosix() ? ".sh" : ".bat";
@@ -168,12 +169,13 @@ public class Jazzer {
         : new FileAttribute[] {};
     // Create a wrapper script that faithfully recreates the current JVM. By using this script as
     // libFuzzer's argv[0], libFuzzer modes that rely on subprocesses can work with the Java driver.
+    String preloadEnv = preloadVariable() + "=" + preloadLibs.stream().map(Path::toString).collect(joining(File.pathSeparator));
     String command = Stream
                          .concat(Stream.of(javaBinary().toString()), javaBinaryArgs())
                          // Escape individual arguments for the shell.
                          .map(str -> shellQuote + str + shellQuote)
                          .collect(joining(" "));
-    String launcherContent = String.format(launcherTemplate, command);
+    String launcherContent = String.format(launcherTemplate, preloadEnv + " " + command);
     Path launcher = Files.createTempFile("jazzer-", launcherExtension, launcherScriptAttributes);
     launcher.toFile().deleteOnExit();
     Files.write(launcher, launcherContent.getBytes(StandardCharsets.UTF_8));
@@ -197,20 +199,20 @@ public class Jazzer {
   }
 
   /**
-   * Append the given elements to the {@link ProcessBuilder}'s environment variable {@code name}
-   * that contains a list of paths separated by the system path list separator.
+   * Append the given elements to the value of the environment variable {@code name} that contains a
+   * list of paths separated by the system path list separator.
    */
-  private static void appendWithPathListSeparator(
-      ProcessBuilder builder, String name, String... options) {
-    String currentValue = builder.environment().get(name);
+  private static String appendWithPathListSeparator(String name, String... options) {
+    String currentValue = System.getenv(name);
     String additionalOptions = String.join(File.pathSeparator, options);
     if (currentValue != null && !currentValue.isEmpty() && !additionalOptions.isEmpty()) {
-      builder.environment().put(name, currentValue + File.pathSeparator + additionalOptions);
+      return currentValue + File.pathSeparator + additionalOptions;
     } else if (!additionalOptions.isEmpty()) {
-      builder.environment().put(name, additionalOptions);
+      return additionalOptions;
     }
     // additionalOptions.isEmpty() && (currentValue == null || currentValue.isEmpty()) holds at this
     // point, so we don't have to modify the environment.
+    return currentValue;
   }
 
   /**
@@ -261,6 +263,10 @@ public class Jazzer {
     } else {
       return "libclang_rt.ubsan_osx_dynamic.dylib";
     }
+  }
+
+  private static String preloadVariable() {
+    return isLinux() ? "LD_PRELOAD" : "DYLD_INSERT_LIBRARIES";
   }
 
   private static boolean isLinux() {
