@@ -28,7 +28,7 @@ import org.junit.jupiter.api.extension.ReflectiveInvocationContext;
 import org.junit.jupiter.params.support.AnnotationConsumer;
 
 class FuzzTestExtensions implements ExecutionCondition, InvocationInterceptor {
-  private static final AtomicReference<Method> fuzzTestMethod = new AtomicReference<>();
+  private static final AtomicReference<String> fuzzTestId = new AtomicReference<>();
   private static Field lastFindingField;
 
   @Override
@@ -74,11 +74,10 @@ class FuzzTestExtensions implements ExecutionCondition, InvocationInterceptor {
       return ConditionEvaluationResult.enabled(
           "Regression tests are run instead of fuzzing since JAZZER_FUZZ has not been set to a non-empty value");
     }
+    String fuzzTestId = extensionContext.getParent().get().getUniqueId();
     // Only fuzz the first @FuzzTest that makes it here.
-    if (FuzzTestExtensions.fuzzTestMethod.compareAndSet(
-            null, extensionContext.getRequiredTestMethod())
-        || extensionContext.getRequiredTestMethod().equals(
-            FuzzTestExtensions.fuzzTestMethod.get())) {
+    if (FuzzTestExtensions.fuzzTestId.compareAndSet(null, fuzzTestId)
+        || fuzzTestId.equals(FuzzTestExtensions.fuzzTestId.get())) {
       return ConditionEvaluationResult.enabled(
           "Fuzzing " + extensionContext.getRequiredTestMethod());
     }

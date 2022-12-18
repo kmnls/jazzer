@@ -53,6 +53,7 @@ class AgentConfigurator {
   }
 
   private static void applyCommonConfiguration() {
+    System.setProperty("jazzer.internal.classloader", IsolatedClassLoader.class.getName());
     // Do not hook common IDE and JUnit classes and their dependencies.
     System.setProperty("jazzer.custom_hook_excludes",
         String.join(File.pathSeparator, "com.google.testing.junit.**", "com.intellij.**",

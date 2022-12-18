@@ -85,6 +85,7 @@ import org.junit.jupiter.params.provider.ArgumentsSource;
  */
 @Target({ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
+@ExtendWith(IsolatingInvocationInterceptor.class)
 @ArgumentsSource(FuzzTestArgumentsProvider.class)
 @ExtendWith(FuzzTestExtensions.class)
 // {0} is expanded to the basename of the seed by the ArgumentProvider.

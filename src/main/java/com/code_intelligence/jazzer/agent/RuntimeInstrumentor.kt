@@ -46,6 +46,8 @@ class RuntimeInstrumentor(
     private val dumpClassesDir: Path?,
 ) : ClassFileTransformer {
 
+    val instrumentingClassLoader: String? = System.getProperty("jazzer.internal.classloader")
+
     @OptIn(kotlin.time.ExperimentalTime::class)
     override fun transform(
         loader: ClassLoader?,
@@ -54,6 +56,9 @@ class RuntimeInstrumentor(
         protectionDomain: ProtectionDomain?,
         classfileBuffer: ByteArray,
     ): ByteArray? {
+        if (instrumentingClassLoader != null && loader != null && loader.javaClass.name != instrumentingClassLoader) {
+            return null
+        }
         return try {
             // Bail out early if we would instrument ourselves. This prevents ClassCircularityErrors as we might need to
             // load additional Jazzer classes until we reach the full exclusion logic.
