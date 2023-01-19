@@ -1,0 +1,48 @@
+java_test(
+    name = "IntMutatorTest",
+    size = "small",
+    srcs = [
+        "IntMutatorTest.java",
+    ],
+    test_class = "com.code_intelligence.jazzer.autofuzz.v2.IntMutatorTest",
+    deps = [
+        ":test_deps",
+        "//src/main/java/com/code_intelligence/jazzer/autofuzz/v2:int_mutator",
+    ],
+)
+
+java_test(
+    name = "ListMutatorTest",
+    size = "small",
+    srcs = [
+        "ListMutatorTest.java",
+    ],
+    test_class = "com.code_intelligence.jazzer.autofuzz.v2.ListMutatorTest",
+    deps = [
+        ":test_deps",
+        "//src/main/java/com/code_intelligence/jazzer/autofuzz/v2:list_mutator",
+    ],
+)
+
+java_test(
+    name = "MutatorSupportTest",
+    size = "small",
+    srcs = [
+        "MutatorSupportTest.java",
+    ],
+    test_class = "com.code_intelligence.jazzer.autofuzz.v2.MutatorSupportTest",
+    deps = [
+        ":test_deps",
+        "//src/main/java/com/code_intelligence/jazzer/autofuzz/v2:annotations",
+        "//src/main/java/com/code_intelligence/jazzer/autofuzz/v2:mutator_support",
+    ],
+)
+
+java_library(
+    name = "test_deps",
+    exports = [
+        "@maven//:com_google_truth_extensions_truth_java8_extension",
+        "@maven//:com_google_truth_truth",
+        "@maven//:junit_junit",
+    ],
+)

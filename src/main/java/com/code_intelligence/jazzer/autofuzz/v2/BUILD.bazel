@@ -1,0 +1,51 @@
+package(default_visibility = ["//visibility:public"])
+
+java_library(
+    name = "mutator",
+    srcs = [
+        "Mutatable.java",
+        "Mutator.java",
+    ],
+)
+
+java_library(
+    name = "mutator_support",
+    srcs = [
+        "MutatorSupport.java",
+    ],
+)
+
+java_library(
+    name = "annotations",
+    srcs = [
+        "Positive.java",
+        "WithSize.java",
+    ],
+    deps = [
+        ":mutator_support",
+    ],
+)
+
+java_library(
+    name = "list_mutator",
+    srcs = [
+        "ListMutator.java",
+    ],
+    deps = [
+        ":annotations",
+        ":mutator",
+        ":mutator_support",
+    ],
+)
+
+java_library(
+    name = "int_mutator",
+    srcs = [
+        "IntMutator.java",
+    ],
+    deps = [
+        ":annotations",
+        ":mutator",
+        ":mutator_support",
+    ],
+)
